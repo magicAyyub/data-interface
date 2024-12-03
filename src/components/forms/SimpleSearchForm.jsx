@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const SimpleSearchForm = ({ onSearch }) => {
   const [showMoreFields, setShowMoreFields] = useState(false);
@@ -26,100 +26,154 @@ const SimpleSearchForm = ({ onSearch }) => {
     }));
   };
 
+  // Styles communs pour les inputs
+  const inputClassName = `
+  w-full px-3 py-2 border rounded-md shadow-sm 
+  focus:outline-none focus:ring-1
+  `;
+
+  // Styles pour les labels
+  const labelClassName = `
+    block 
+    text-sm 
+    font-semibold 
+    text-gray-700 
+    mb-1
+  `;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Nom</label>
+          <label className={labelClassName}>Nom</label>
           <input
             type="text"
             name="nom"
             value={formData.nom}
             onChange={handleInputChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
+            className={inputClassName}
+            placeholder="Entrez le nom"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Prénom</label>
+          <label className={labelClassName}>Prénom</label>
           <input
             type="text"
             name="prenom"
             value={formData.prenom}
             onChange={handleInputChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
+            className={inputClassName}
+            placeholder="Entrez le prénom"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Email</label>
+        <label className={labelClassName}>Email</label>
         <input
           type="email"
           name="email"
           value={formData.email}
           onChange={handleInputChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
+          className={inputClassName}
+          placeholder="exemple@email.com"
         />
       </div>
 
-      <div className="flex items-center">
+      <div className="flex items-center space-x-3">
         <input
           type="checkbox"
-          name="flexible"
-          checked={formData.flexible}
+          id="like"
+          name="like"
+          checked={formData.like}
           onChange={handleInputChange}
-          className="rounded border-gray-300 text-black focus:ring-black"
+          className="
+            w-5 
+            h-5 
+            rounded 
+            border-2 
+            border-gray-300 
+            text-black 
+            focus:ring-2 
+            focus:ring-black 
+            focus:ring-opacity-20 
+            transition-colors
+          "
         />
-        <label className="ml-2 text-sm text-gray-700">Recherche flexible</label>
+        <label htmlFor="like" className="text-sm font-medium text-gray-700">
+          Recherche flexible
+        </label>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setShowMoreFields(!showMoreFields)}
-        className="flex items-center text-sm text-gray-600 hover:text-gray-900"
-      >
-        {showMoreFields ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
-        {showMoreFields ? 'Moins de critères' : 'Plus de critères'}
-      </button>
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowMoreFields(!showMoreFields)}
+          className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          {showMoreFields ? (
+            <ChevronUp className="w-4 h-4 mr-2" />
+          ) : (
+            <ChevronDown className="w-4 h-4 mr-2" />
+          )}
+          <span>{showMoreFields ? 'Moins de critères' : 'Plus de critères'}</span>
+        </button>
 
-      {showMoreFields && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Date de naissance</label>
-            <input
-              type="date"
-              name="dateNaissance"
-              value={formData.dateNaissance}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
-            />
+        {showMoreFields && (
+          <div className="space-y-6 mt-6">
+            <div>
+              <label className={labelClassName}>Date de naissance</label>
+              <input
+                type="date"
+                name="dateNaissance"
+                value={formData.dateNaissance}
+                onChange={handleInputChange}
+                className={inputClassName}
+              />
+            </div>
+            <div>
+              <label className={labelClassName}>ID CCU</label>
+              <input
+                type="text"
+                name="idccu"
+                value={formData.idCcu}
+                onChange={handleInputChange}
+                className={inputClassName}
+                placeholder="Entrez l'ID CCU"
+              />
+            </div>
+            <div>
+              <label className={labelClassName}>ID UUID</label>
+              <input
+                type="text"
+                name="iduuid"
+                value={formData.idUuid}
+                onChange={handleInputChange}
+                className={inputClassName}
+                placeholder="Entrez l'ID UUID"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">ID CCU</label>
-            <input
-              type="text"
-              name="idCcu"
-              value={formData.idCcu}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">ID UUID</label>
-            <input
-              type="text"
-              name="idUuid"
-              value={formData.idUuid}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <button
         type="submit"
-        className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 transition-colors"
+        className="
+          w-full 
+          bg-black 
+          text-white 
+          py-3 
+          px-4 
+          rounded-lg 
+          font-medium 
+          hover:bg-gray-800 
+          focus:outline-none 
+          focus:ring-2 
+          focus:ring-black 
+          focus:ring-opacity-50 
+          transition-colors
+        "
       >
         Lancer la recherche
       </button>

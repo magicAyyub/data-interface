@@ -37,6 +37,7 @@ const RegexSearchForm = ({ onSearch }) => {
           </label>
           <input
             id="regex-pattern"
+            name='regex'
             type="text"
             value={pattern}
             onChange={handlePatternChange}
