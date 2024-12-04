@@ -33,7 +33,7 @@ const API_CONFIG = {
   // Service API pour la recherche simple
   export const simpleSearch = async (searchParams, page = 1, limit = 30) => {
     try {
-      const response = await fetch('/search', {
+      const response = await fetch('/api/search', {
         method: 'POST',
         ...API_CONFIG,
         body: JSON.stringify({
@@ -59,7 +59,7 @@ const API_CONFIG = {
       const formData = new FormData();
       formData.append('csv_file', file);
   
-      const response = await fetch('/fill_csv', {
+      const response = await fetch('/api/fill_csv', {
         method: 'POST',
         body: formData,
       });
@@ -78,7 +78,7 @@ const API_CONFIG = {
   // Service API pour la recherche par regex
   export const regexSearch = async (pattern, page = 1, limit = 30) => {
     try {
-      const response = await fetch('/search', {
+      const response = await fetch('/api/search', {
         method: 'POST',
         ...API_CONFIG,
         body: JSON.stringify({
@@ -104,7 +104,7 @@ const API_CONFIG = {
       const formData = new FormData();
       formData.append('file', file);
   
-      const response = await fetch('/process_file', {
+      const response = await fetch('/api/process_file', {
         method: 'POST',
         body: formData,
       });
@@ -122,7 +122,7 @@ const API_CONFIG = {
   // Service API pour le téléchargement du CSV traité
   export const downloadProcessedCSV = async () => {
     try {
-      const response = await fetch('/download_csv', {
+      const response = await fetch('/api/download_csv', {
         method: 'GET',
       });
   
@@ -142,7 +142,7 @@ const API_CONFIG = {
       const formData = new FormData();
       formData.append('table_name', tableName);
   
-      const response = await fetch('/load_data', {
+      const response = await fetch('/api/load_data', {
         method: 'POST',
         body: formData,
       });
