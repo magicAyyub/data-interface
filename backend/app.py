@@ -2,6 +2,7 @@ import os
 import re
 import json
 import pandas as pd
+import math
 from flask import Flask, request, render_template, send_file, jsonify, Response
 from flask_cors import CORS
 from sqlalchemy import create_engine
@@ -24,6 +25,21 @@ def clear_tmp_folder(tmp_folder: str) -> None:
         file_path = os.path.join(tmp_folder, filename)
         if os.path.isfile(file_path) or os.path.islink(file_path):
             os.unlink(file_path)
+
+def clean_sql_results(results):
+    cleaned = []
+    for row in results:
+        clean_row = {}
+        for key, value in row.items():
+            # Convertir les valeurs numpy.int64 et numpy.float64 en types Python natifs
+            if hasattr(value, 'item'):
+                value = value.item()
+            # Gérer les NaN et les valeurs infinies
+            if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+                value = None
+            clean_row[key] = value
+        cleaned.append(clean_row)
+    return cleaned
 
 @app.route("/", methods=["GET"])
 def index() -> str:
@@ -82,7 +98,7 @@ def search() -> Union[Response, Exception]:
     page = form_data.get("page", 1)
     limit = form_data.get("limit", 100)
  
-    with open('src/utils/jsons/db_search_columns.json') as json_file:
+    with open('../src/utils/jsons/db_search_columns.json') as json_file:
         db_columns = json.load(json_file)
     query_conditions = []
     like_checkbox = form_data.get("like", False)
@@ -120,8 +136,9 @@ def search() -> Union[Response, Exception]:
     try:
         results_df = pd.read_sql(query, engine)
         results = results_df.to_dict(orient='records')
+        cleaned_results = clean_sql_results(results)
         return jsonify({
-    'results': results,
+    'results': cleaned_results,
     'page': page,
     'limit': limit,
     'total_count': int(total_count)  # Convert to standard Python int

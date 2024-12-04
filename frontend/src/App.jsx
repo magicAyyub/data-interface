@@ -28,7 +28,7 @@ const SearchTypeButton = ({ type, icon: Icon, label, active, onClick }) => (
 );
 
 const App = () => {
-  // États de l'application
+  // États de base
   const [searchType, setSearchType] = useState('simple');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,8 +37,21 @@ const App = () => {
   const [totalResults, setTotalResults] = useState(0);
   const [searchCount, setSearchCount] = useState(0);
 
-  // Gestionnaire de recherche principale
-  const handleSearch = useCallback(async (data) => {
+  // États pour la gestion de la pagination et du cache
+  const [lastSearchParams, setLastSearchParams] = useState(null);
+  const [resultsCache, setResultsCache] = useState({});
+
+  // Fonction principale pour effectuer une recherche
+  const performSearch = async (data) => {
+    const cacheKey = `${JSON.stringify(data)}_${currentPage}`;
+    
+    // Vérifier le cache
+    if (resultsCache[cacheKey]) {
+      setResults(resultsCache[cacheKey].results);
+      setTotalResults(resultsCache[cacheKey].totalResults);
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     
@@ -57,19 +70,67 @@ const App = () => {
         throw new Error('Erreur lors de la recherche');
       }
       
-      const result = await response.json();
-      setResults(result.results);
-      setTotalResults(result.total_count);
+      // Récupération et nettoyage des données
+      const textData = await response.text();
+      let jsonData;
+      try {
+        jsonData = JSON.parse(textData);
+      } catch (parseError) {
+        console.error('Erreur de parsing JSON:', textData);
+        throw new Error('Format de données invalide reçu du serveur');
+      }
+
+      // Nettoyage des résultats
+      const cleanResults = jsonData.results.map(result => {
+        const cleanResult = {};
+        Object.keys(result).forEach(key => {
+          cleanResult[key] = Number.isNaN(result[key]) ? null : result[key];
+          if (cleanResult[key] === undefined) {
+            cleanResult[key] = null;
+          }
+        });
+        return cleanResult;
+      });
+
+      // Mise en cache des résultats
+      setResultsCache(prev => ({
+        ...prev,
+        [cacheKey]: {
+          results: cleanResults,
+          totalResults: jsonData.total_count
+        }
+      }));
+
+      setResults(cleanResults);
+      setTotalResults(jsonData.total_count);
       setSearchCount(prev => prev + 1);
     } catch (err) {
       setError(err.message);
+      console.error('Erreur détaillée:', err);
+      setResults([]);
+      setTotalResults(0);
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage]);
+  };
 
-  // Gestionnaire pour l'upload de fichier CSV
-  const handleCSVUpload = useCallback(async (file) => {
+  // Gestionnaire de la recherche initiale
+  const handleSearch = useCallback(async (data) => {
+    setLastSearchParams(data);
+    setCurrentPage(1); // Reset la pagination à la première page
+    await performSearch(data);
+  }, []);
+
+  // Gestionnaire pour le changement de page
+  const handlePageChange = async (newPage) => {
+    setCurrentPage(newPage);
+    if (lastSearchParams) {
+      await performSearch(lastSearchParams);
+    }
+  };
+
+  // Gestionnaire pour l'upload CSV
+  const handleCSVUpload = async (file) => {
     setIsLoading(true);
     setError('');
 
@@ -86,7 +147,6 @@ const App = () => {
         throw new Error('Erreur lors du traitement du fichier');
       }
 
-      // Téléchargement automatique du fichier résultant
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -101,24 +161,15 @@ const App = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  // Configuration des types de recherche disponibles
-  const searchTypes = [
-    { type: 'simple', icon: Search, label: 'Simple' },
-    { type: 'csv', icon: Upload, label: 'CSV' },
-    { type: 'regex', icon: Hash, label: 'Regex' }
-  ];
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
-        {/* En-tête de la page */}
         <h1 className="text-3xl font-bold text-center mb-8">
           Interface web de recherche
         </h1>
 
-        {/* Section principale de recherche */}
         <div className="bg-white rounded-xl shadow-sm p-6 relative mb-8">
           {/* Affichage des erreurs */}
           {error && (
@@ -140,7 +191,11 @@ const App = () => {
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Type de recherche</h2>
             <div className="grid grid-cols-3 gap-4">
-              {searchTypes.map(({ type, icon, label }) => (
+              {[
+                { type: 'simple', icon: Search, label: 'Simple' },
+                { type: 'csv', icon: Upload, label: 'CSV' },
+                { type: 'regex', icon: Hash, label: 'Regex' }
+              ].map(({ type, icon, label }) => (
                 <SearchTypeButton
                   key={type}
                   type={type}
@@ -153,8 +208,9 @@ const App = () => {
             </div>
           </div>
 
-          {/* Zone des formulaires avec indicateur de chargement */}
+          {/* Zone des formulaires */}
           <div className="relative">
+            {/* Loader */}
             {isLoading && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-lg z-50">
                 <div className="flex flex-col items-center">
@@ -164,12 +220,13 @@ const App = () => {
               </div>
             )}
 
+            {/* Formulaires */}
             {searchType === 'simple' && <SimpleSearchForm onSearch={handleSearch} />}
             {searchType === 'csv' && <CSVSearchForm onFileUpload={handleCSVUpload} />}
             {searchType === 'regex' && <RegexSearchForm onSearch={handleSearch} />}
           </div>
 
-          {/* Bouton d'ajout flottant */}
+          {/* Bouton d'ajout */}
           <Link
             to="/add"
             className="absolute top-0 right-0 -mt-4 -mr-4 flex items-center justify-center w-12 h-12 bg-black text-white rounded-full hover:bg-gray-800 transition-colors duration-200 shadow-lg transform hover:scale-105"
@@ -177,8 +234,8 @@ const App = () => {
             <Plus className="w-6 h-6" />
           </Link>
         </div>
-        
-        {/* Section des résultats - Toujours visible après une recherche */}
+
+        {/* Section des résultats */}
         {(searchCount > 0 || isLoading) && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <ResultsTable
@@ -188,11 +245,11 @@ const App = () => {
               totalResults={totalResults}
             />
 
-            {/* Pagination - visible uniquement s'il y a des résultats */}
+            {/* Pagination */}
             {results.length > 0 && (
               <div className="flex justify-center gap-4 mt-6">
                 <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1 || isLoading}
                   className="px-4 py-2 border-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                 >
@@ -202,7 +259,7 @@ const App = () => {
                   Page {currentPage}
                 </span>
                 <button
-                  onClick={() => setCurrentPage(p => p + 1)}
+                  onClick={() => handlePageChange(currentPage + 1)}
                   disabled={results.length < 30 || isLoading}
                   className="px-4 py-2 border-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                 >
@@ -212,7 +269,6 @@ const App = () => {
             )}
           </div>
         )}
- 
 
         {/* Compteur de recherches */}
         {searchCount > 0 && (
