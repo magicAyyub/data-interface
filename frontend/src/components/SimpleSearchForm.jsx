@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const SimpleSearchForm = ({ onSearch }) => {
-  const [showMoreFields, setShowMoreFields] = useState(false);
+
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
     email: '',
     dateNaissance: '',
-    idCcu: '',
-    idUuid: '',
-    flexible: false
+    idccu: '',
+    iduuid: '',
+    like: false
   });
+
+  const [showMoreFields, setShowMoreFields] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -45,8 +47,9 @@ const SimpleSearchForm = ({ onSearch }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className={labelClassName}>Nom</label>
+          <label htmlFor='nom' className={labelClassName}>Nom</label>
           <input
+          id='nom'
             type="text"
             name="nom"
             value={formData.nom}
@@ -56,8 +59,9 @@ const SimpleSearchForm = ({ onSearch }) => {
           />
         </div>
         <div>
-          <label className={labelClassName}>Prénom</label>
+          <label htmlFor='prenom' className={labelClassName}>Prénom</label>
           <input
+          id='prenom'
             type="text"
             name="prenom"
             value={formData.prenom}
@@ -69,8 +73,9 @@ const SimpleSearchForm = ({ onSearch }) => {
       </div>
 
       <div>
-        <label className={labelClassName}>Email</label>
+        <label htmlFor='email' className={labelClassName}>Email</label>
         <input
+        id='email'
           type="email"
           name="email"
           value={formData.email}
@@ -122,8 +127,9 @@ const SimpleSearchForm = ({ onSearch }) => {
         {showMoreFields && (
           <div className="space-y-6 mt-6">
             <div>
-              <label className={labelClassName}>Date de naissance</label>
+              <label htmlFor='dateNaissance' className={labelClassName}>Date de naissance</label>
               <input
+              id='dateNaissance'
                 type="date"
                 name="dateNaissance"
                 value={formData.dateNaissance}
@@ -132,22 +138,24 @@ const SimpleSearchForm = ({ onSearch }) => {
               />
             </div>
             <div>
-              <label className={labelClassName}>ID CCU</label>
+              <label htmlFor='idccu' className={labelClassName}>ID CCU</label>
               <input
+              id='idccu'
                 type="text"
                 name="idccu"
-                value={formData.idCcu}
+                value={formData.idccu}
                 onChange={handleInputChange}
                 className={inputClassName}
                 placeholder="Entrez l'ID CCU"
               />
             </div>
             <div>
-              <label className={labelClassName}>ID UUID</label>
+              <label htmlFor='iduuid' className={labelClassName}>ID UUID</label>
               <input
+                id="iduuid"
                 type="text"
                 name="iduuid"
-                value={formData.idUuid}
+                value={formData.iduuid}
                 onChange={handleInputChange}
                 className={inputClassName}
                 placeholder="Entrez l'ID UUID"

@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { Search, Upload, Hash, Plus } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Search, Upload, Hash, Plus, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import SimpleSearchForm from './components/forms/SimpleSearchForm';
-import CSVSearchForm from './components/forms/CSVSearchForm';
-import RegexSearchForm from './components/forms/RegexSearchForm';
-import ResultsTable from './components/results/ResultsTable';
+import SimpleSearchForm from './components/SimpleSearchForm';
+import CSVSearchForm from './components/CSVSearchForm';
+import RegexSearchForm from './components/RegexSearchForm';
+import ResultsTable from './components/ResultsTable';
+import TableDropdown from './components/TableDropdown';
 
 // Liste des colonnes à afficher dans la table des résultats
 const columnOrderResponse = await fetch('src/utils/jsons/db_columns.json');
@@ -41,9 +42,49 @@ const App = () => {
   const [lastSearchParams, setLastSearchParams] = useState(null);
   const [resultsCache, setResultsCache] = useState({});
 
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [availableTables, setAvailableTables] = useState([]);
+  const [showEmptyState, setShowEmptyState] = useState(false);
+
+  //  useEffect pour charger les tables disponibles
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        const response = await fetch('/api/tables');
+        if (!response.ok) throw new Error('Erreur lors de la récupération des tables');
+        
+        const data = await response.json();
+        
+        if (data.status === 'empty') {
+          // Afficher un message d'information plutôt qu'une erreur
+          setError(null); // Effacer les erreurs précédentes
+          setShowEmptyState(true); // Nouvel état pour gérer l'affichage
+        } else {
+          setAvailableTables(data.tables);
+          if (data.tables.length > 0) {
+            setSelectedTable(data.tables[0]);
+          }
+        }
+      } catch (err) {
+        // Garder uniquement les vraies erreurs ici
+        setError(err.message);
+      }
+    };
+  
+    fetchTables();
+  }, []);
+  
+
+
   // Fonction principale pour effectuer une recherche
-  const performSearch = async (data) => {
-    const cacheKey = `${JSON.stringify(data)}_${currentPage}`;
+  const performSearch = useCallback(async (data) => {
+
+    if (!selectedTable) {
+      setError("Veuillez sélectionner une table");
+      return;
+    }
+
+    const cacheKey = `${selectedTable}_${JSON.stringify(data)}_${currentPage}`;
     
     // Vérifier le cache
     if (resultsCache[cacheKey]) {
@@ -61,13 +102,14 @@ const App = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
+          table: selectedTable,
           page: currentPage,
           limit: 30
         })
       });
       
       if (!response.ok) {
-        throw new Error('Erreur lors de la recherche');
+        throw new Error('Base de donnée vide. Ajoutez de la donnée avant toute opérations.');
       }
       
       // Récupération et nettoyage des données
@@ -112,14 +154,14 @@ const App = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, selectedTable, resultsCache]);
 
   // Gestionnaire de la recherche initiale
   const handleSearch = useCallback(async (data) => {
     setLastSearchParams(data);
     setCurrentPage(1); // Reset la pagination à la première page
     await performSearch(data);
-  }, []);
+  }, [selectedTable]);
 
   // Gestionnaire pour le changement de page
   const handlePageChange = async (newPage) => {
@@ -188,8 +230,15 @@ const App = () => {
           )}
 
           {/* Sélection du type de recherche */}
-          <div className="mb-8">
+          <div className="mb-8 relative">
             <h2 className="text-xl font-semibold mb-4">Type de recherche</h2>
+                {/* Sélecteur de table */}
+              <TableDropdown
+                tables={availableTables}
+                selectedTable={selectedTable}
+                onTableChange={setSelectedTable}
+              />
+
             <div className="grid grid-cols-3 gap-4">
               {[
                 { type: 'simple', icon: Search, label: 'Simple' },
@@ -207,6 +256,30 @@ const App = () => {
               ))}
             </div>
           </div>
+          
+          {/* Message d'info */}
+          {showEmptyState ? (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div className="ml-3">
+                  <p className="text-sm text-yellow-700">
+                    La base de données est vide. Pour commencer à utiliser l'application, vous devez d'abord {' '}
+                    <Link 
+                      to="/add" 
+                      className="inline-flex items-center font-medium text-yellow-700 underline hover:text-yellow-600 transition-colors"
+                    >
+                      charger des données
+                      <span className="ml-1">→</span>
+                    </Link>
+                  </p>
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Une fois les données chargées, vous pourrez effectuer des recherches.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Zone des formulaires */}
           <div className="relative">
@@ -221,9 +294,13 @@ const App = () => {
             )}
 
             {/* Formulaires */}
-            {searchType === 'simple' && <SimpleSearchForm onSearch={handleSearch} />}
-            {searchType === 'csv' && <CSVSearchForm onFileUpload={handleCSVUpload} />}
-            {searchType === 'regex' && <RegexSearchForm onSearch={handleSearch} />}
+            {!showEmptyState ? (
+              <>
+                {searchType === 'simple' && <SimpleSearchForm onSearch={handleSearch} />}
+                {searchType === 'csv' && <CSVSearchForm onFileUpload={handleCSVUpload} />}
+                {searchType === 'regex' && <RegexSearchForm onSearch={handleSearch} />}
+              </>
+            ) : null}
           </div>
 
           {/* Bouton d'ajout */}

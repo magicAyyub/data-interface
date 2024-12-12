@@ -44,7 +44,7 @@ const API_CONFIG = {
       });
   
       if (!response.ok) {
-        throw new Error('Erreur lors de la recherche');
+        throw new Error('Base de donnée vide. Ajoutez de la donnée avant toute opérations.');
       }
   
       return await response.json();
@@ -89,7 +89,7 @@ const API_CONFIG = {
       });
   
       if (!response.ok) {
-        throw new Error('Erreur lors de la recherche par expression régulière');
+        throw new Error('Base de donnée vide. Ajoutez de la donnée avant toute opérations. par expression régulière');
       }
   
       return await response.json();

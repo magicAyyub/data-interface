@@ -1,99 +1,46 @@
-import React, { useState } from 'react';
-import { Upload, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Upload, ArrowLeft, AlertTriangle } from 'lucide-react';
+import LoadDataModal from '../components/LoadDataModal';
+import ProgressIndicator from '../components/ProgressIndicator';
+import io from 'socket.io-client';
 
 const AddPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const [error, setError] = useState('');
+  const [isLoadDataModalOpen, setIsLoadDataModalOpen] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState('');
 
-  // Fonction pour traiter le fichier texte
-  const handleFileProcess = async () => {
-    if (!selectedFile) {
-      setError("Veuillez sélectionner un fichier texte (.txt)");
-      return;
-    }
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+    socket.on('load_progress', (data) => {
+      setProgress(data.progress);
+      setStage(`Chargement des données: ${data.progress}%`);
+    });
 
-    setIsLoading(true);
-    setError('');
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
-    try {
-      const response = await fetch('/api/process_file', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors du traitement du fichier');
-      }
-
-      setShowResults(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fonction pour gérer le téléchargement CSV
-  const handleDownloadCSV = async () => {
-    try {
-      const response = await fetch('/api/download_csv');
-      if (!response.ok) throw new Error('Erreur lors du téléchargement');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'processed_data.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  // Fonction pour charger les données dans la base de données
-  const handleLoadData = async () => {
-    const tableName = window.prompt('Quel est le nom de table à charger ? (Elle sera créée si elle n\'existe pas.)', 'data');
-    if (!tableName) return;
-
-    setIsLoading(true);
-    setError('');
-
-    const formData = new FormData();
-    formData.append('table_name', tableName);
-
-    try {
-      const response = await fetch('/api/load_data', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) throw new Error('Erreur lors du chargement des données');
-
-      alert('Données chargées avec succès dans la base de données.');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Gestion du drag & drop et de la sélection de fichier
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    setDragActive(false);
     
     const file = e.dataTransfer.files[0];
     if (file && file.name.endsWith('.txt')) {
@@ -114,6 +61,61 @@ const AddPage = () => {
     }
   };
 
+  const handleFileProcess = async () => {
+    if (!selectedFile) {
+      setError("Veuillez sélectionner un fichier texte (.txt)");
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setProgress(0);
+    setStage('Initialisation');
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await fetch('/api/process_file', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.details || 'Erreur lors du traitement du fichier');
+      }
+
+      setShowResults(true);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDownloadCSV = async () => {
+    try {
+      const response = await fetch('/api/download_csv');
+      if (!response.ok) {
+        throw new Error('Erreur lors du téléchargement');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'processed_data.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-3xl">
       <h1 className="text-3xl font-bold mb-6 text-center">
@@ -121,14 +123,20 @@ const AddPage = () => {
       </h1>
 
       <div className="bg-white shadow-md rounded-lg p-6 relative">
-        {/* Affichage des erreurs */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
-            <p className="text-sm">{error}</p>
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+            <div className="flex">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-xs text-red-600 mt-1">
+                  Si le problème persiste, veuillez vérifier l'encodage du fichier et réessayer.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Section de téléchargement du fichier */}
         <div className="bg-white p-6 flex flex-col h-[280px] relative">
           <h2 className="text-xl font-semibold mb-4">
             Étape 1 : Téléchargement du fichier texte
@@ -136,12 +144,16 @@ const AddPage = () => {
 
           <div className="flex-1 flex flex-col">
             <div
-              className={`flex-1 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`
+                flex-1 border-2 border-dashed rounded-lg 
+                relative
+                transition-colors duration-200
+                ${dragActive ? 'border-black bg-gray-50' : 'border-gray-300'}
+                ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:border-gray-400 cursor-pointer'}
+              `}
               onDragEnter={handleDrag}
-              onDragOver={handleDrag}
               onDragLeave={handleDrag}
+              onDragOver={handleDrag}
               onDrop={handleDrop}
             >
               <input
@@ -152,12 +164,15 @@ const AddPage = () => {
                 id="txtFile"
                 disabled={isLoading}
               />
-              <label htmlFor="txtFile" className="cursor-pointer">
-                <Upload className="w-8 h-8 mb-2 text-gray-500 mx-auto" />
+              <label 
+                htmlFor="txtFile" 
+                className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
+              >
+                <Upload className="w-12 h-12 text-gray-400 mb-4" />
                 <p className="text-center text-gray-600">
-                  Cliquer pour télécharger ou glisser-déposer
+                  Cliquez pour sélectionner un fichier texte
                   <br />
-                  <span className="text-sm text-gray-500">Fichier TXT uniquement</span>
+                  ou glissez-déposez le ici
                 </p>
                 {selectedFile && (
                   <p className="mt-2 text-sm text-gray-500">
@@ -170,31 +185,34 @@ const AddPage = () => {
             <button
               onClick={handleFileProcess}
               disabled={!selectedFile || isLoading}
-              className="mt-4 w-full bg-black text-white p-2 rounded-md hover:bg-gray-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className={`
+                mt-4 w-full py-2 px-4 rounded-lg font-medium
+                transition-colors duration-200
+                ${(!selectedFile || isLoading)
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-black text-white hover:bg-gray-800'}
+              `}
             >
-              Extraction
+              {isLoading ? 'Extraction en cours...' : 'Extraction'}
             </button>
           </div>
-
-          {/* Indicateur de chargement */}
-          {isLoading && (
-            <div className="mt-4 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-              <p className="mt-2 text-gray-600">Traitement en cours, veuillez patienter...</p>
-            </div>
-          )}
-
-          {/* Bouton de retour */}
-          <a
-            href="/"
+          <Link
+            to="/"
             className="absolute top-[-40px] left-[-40px] flex items-center justify-center w-12 h-12 bg-black text-white rounded-full hover:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-6 h-6" />
-          </a>
+          </Link>
         </div>
+
+        {isLoading && (
+          <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center rounded-lg">
+            <div className="w-full max-w-md p-6">
+              <ProgressIndicator progress={progress} stage={stage} />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Section des résultats */}
       {showResults && (
         <div className="bg-white shadow-md rounded-lg p-6 mt-6">
           <h2 className="text-xl font-semibold mb-4">
@@ -210,7 +228,7 @@ const AddPage = () => {
             </button>
 
             <button
-              onClick={handleLoadData}
+              onClick={() => setIsLoadDataModalOpen(true)}
               className="w-full border border-black text-black p-2 rounded-md hover:bg-gray-100 transition-colors"
             >
               Charger dans la base de données
@@ -218,6 +236,11 @@ const AddPage = () => {
           </div>
         </div>
       )}
+
+      <LoadDataModal
+        isOpen={isLoadDataModalOpen}
+        onClose={() => setIsLoadDataModalOpen(false)}
+      />
     </div>
   );
 };
